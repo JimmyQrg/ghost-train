@@ -28,9 +28,11 @@ canvas { display:block; }
   position:absolute; top:10%; left:20%; width:60%; height:70%;
   background:black; color:white; border-radius:16px; padding:20px;
   overflow-y:auto; box-shadow:0 0 40px purple; display:none; z-index:20;
+  line-height:1.8;
 }
 #howToPlayBox h1 { font-size:28px; color:white; text-shadow:0 0 15px white; text-align:center; }
 #howToPlayBox h2 { font-size:20px; color:white; text-shadow:0 0 10px white; margin-top:5px; text-align:center; }
+#howToPlayBox p b { display:block; margin-top:10px; }
 #closeHowTo { position:absolute; top:10px; right:20px; font-size:24px; cursor:pointer; color:purple; }
 
 #strikeButton {
@@ -80,10 +82,23 @@ let scrollSpeed=10, blockSize=50, score=0;
 let bestScore = localStorage.getItem("ghostTrainBest")||0;
 document.getElementById("bestScore").textContent="Best Score: "+bestScore;
 
-const groundHeight=8; // thin ground
+const gridCols = Math.floor(canvas.width / blockSize);
 const topGroundY=canvas.height*0.25;
 const bottomGroundY=canvas.height*0.75;
-let player={x:canvas.width*0.2, y:bottomGroundY, lane:1, size:40, targetY:bottomGroundY, vy:0, width:30, height:30};
+const groundHeight = 20;
+
+let player={x:canvas.width*0.2, y:bottomGroundY-groundHeight, lane:1, size:40, targetY:bottomGroundY-groundHeight, width:30, height:30};
+
+// Key state for single-trigger actions
+const keyState = {};
+document.addEventListener("keydown", e => {
+  if(!gameRunning) return;
+  if(keyState[e.key]) return;
+  keyState[e.key] = true;
+  if(["w"," ","ArrowUp"].includes(e.key)) switchLane();
+  if(["q","Tab"].includes(e.key)) destroyNearbyWhite();
+});
+document.addEventListener("keyup", e => { keyState[e.key] = false; });
 
 // Particle system
 function spawnParticles(x,y,color,count=20){
@@ -107,7 +122,7 @@ function updateTrails(){
 }
 
 // Floating scores
-function spawnFloatingScore(val){ floatingScores.push({ val, x:canvas.width/2+60, y:topGroundY-20, alpha:1 }); }
+function spawnFloatingScore(val){ floatingScores.push({ val, x:canvas.width/2+60, y:topGroundY-30, alpha:1 }); }
 function updateFloatingScores(){
   for(let f of floatingScores){ f.y-=0.5; f.alpha-=0.02;
     ctx.font="16px 'Press Start 2P'"; ctx.fillStyle="yellow"; ctx.globalAlpha=f.alpha;
@@ -120,8 +135,9 @@ function updateFloatingScores(){
 class Strike{
   constructor(type,lane){
     this.type=type; this.lane=lane;
-    this.x=canvas.width+100; this.y=lane===0?topGroundY:bottomGroundY;
-    this.size=40; this.active=true; this.timer=0; this.pathPoints=[]; this.moving=false;
+    this.x=canvas.width+100;
+    this.y=lane===0?topGroundY-groundHeight:bottomGroundY;
+    this.size=40; this.active=true; this.timer=0; this.moving=false;
     this.speed = type==="purple"?scrollSpeed*1.5:scrollSpeed;
   }
   update(){
@@ -130,18 +146,17 @@ class Strike{
       let dist=this.x-player.x;
       if(dist<blockSize*4 && dist>0 && this.lane===player.lane && !this.moving){
         let targetLane=this.lane===0?1:0;
-        this.y=this.lane===0?topGroundY:bottomGroundY;
-        this.targetY=targetLane===0?topGroundY:bottomGroundY;
+        this.targetY=targetLane===0?topGroundY-groundHeight:bottomGroundY;
         this.moving=true;
       }
       if(this.moving){
-        this.y += (this.targetY-this.y)*0.5; if(Math.abs(this.y-this.targetY)<1){ this.y=this.targetY; this.moving=false; this.lane=this.targetY===topGroundY?0:1;}
+        this.y += (this.targetY-this.y)*0.5; if(Math.abs(this.y-this.targetY)<1){ this.y=this.targetY; this.moving=false; this.lane=this.targetY===topGroundY-groundHeight?0:1;}
       }
     }
     if(this.type==="white") this.timer++;
   }
   draw(){
-    ctx.shadowBlur=20;
+    ctx.shadowBlur=15;
     let color="white";
     if(this.type==="red") color="red";
     if(this.type==="purple") color="purple";
@@ -149,10 +164,11 @@ class Strike{
 
     ctx.fillStyle=color; ctx.shadowColor=color;
     ctx.beginPath();
-    if(this.lane===0){ // top lane
-      ctx.moveTo(this.x,this.y-this.size/2); ctx.lineTo(this.x-this.size/2,this.y+this.size/2); ctx.lineTo(this.x+this.size/2,this.y+this.size/2);
-    } else {
-      ctx.moveTo(this.x,this.y+this.size/2); ctx.lineTo(this.x-this.size/2,this.y-this.size/2); ctx.lineTo(this.x+this.size/2,this.y-this.size/2);
+    // Triangular strike
+    if(this.lane===0){ // top ground
+      ctx.moveTo(this.x, this.y); ctx.lineTo(this.x-this.size/2,this.y+this.size); ctx.lineTo(this.x+this.size/2,this.y+this.size);
+    } else { // bottom ground
+      ctx.moveTo(this.x, this.y+this.size); ctx.lineTo(this.x-this.size/2,this.y); ctx.lineTo(this.x+this.size/2,this.y);
     }
     ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
   }
@@ -162,7 +178,9 @@ class Strike{
 class Gem{
   constructor(x){ this.x=x; this.y=(topGroundY+bottomGroundY)/2; this.size=12; this.collected=false; }
   update(){ this.x-=scrollSpeed;
-    if(!this.collected && Math.abs(this.x-player.x)<30 && Math.abs(this.y-player.y)<30){ this.collected=true; spawnParticles(this.x,this.y,"white",30); score+=10; spawnFloatingScore(10); }
+    if(!this.collected && Math.abs(this.x-player.x)<30 && Math.abs(this.y-player.y)<30){ 
+      this.collected=true; spawnParticles(this.x,this.y,"white",30); score+=10; spawnFloatingScore(10); 
+    }
   }
   draw(){ if(!this.collected){
     ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(Math.PI/4);
@@ -172,47 +190,49 @@ class Gem{
   }}
 }
 
-// Spawn
-let lastSpawnX=0;
+// Spawn logic
+let lastSpawnCol=0;
+function getNextSpawnCol(){ return lastSpawnCol + 1 + Math.floor(Math.random()*5); }
 function spawnStrike(){ 
-  let x=canvas.width+100;
-  if(x-lastSpawnX<blockSize*2) return;
-  lastSpawnX=x;
+  let col = getNextSpawnCol(); if(col>=gridCols) col=gridCols-1; lastSpawnCol=col;
+  let x = col*blockSize + blockSize/2;
   let t=Math.random(); let type="red"; if(t>0.7 && t<0.9) type="purple"; if(t>=0.9) type="white";
-  let lane=Math.random()<0.5?0:1; strikes.push(new Strike(type,lane)); 
+  let lane=Math.random()<0.5?0:1; strikes.push(new Strike(type,lane)); strikes[strikes.length-1].x=x;
 }
 function spawnGem(){ 
-  let x=canvas.width+100;
-  if(x-lastSpawnX<blockSize*2) return;
-  lastSpawnX=x;
-  gems.push(new Gem(x)); 
+  let col = getNextSpawnCol(); if(col>=gridCols) col=gridCols-1; lastSpawnCol=col;
+  let x = col*blockSize + blockSize/2; gems.push(new Gem(x));
 }
 
 // Draw
 function drawPlayer(){
-  player.y += (player.targetY-player.y)*0.5; 
+  player.y += (player.targetY-player.y)*0.3; 
   spawnTrail(player.x,player.y);
-  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20;
+  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=10;
   ctx.fillRect(player.x-player.width/2,player.y-player.height,player.width,player.height); ctx.shadowBlur=0;
-  spawnParticles(player.x-10,player.y,"white",1);
 }
 function drawGround(){
-  let glowOffset=Math.sin(Date.now()/200)*6;
-  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=glowOffset;
-  ctx.fillRect(0,topGroundY,canvas.width,2);
-  ctx.fillRect(0,bottomGroundY,canvas.width,2); ctx.shadowBlur=0;
+  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=10;
+  ctx.fillRect(0,topGroundY-groundHeight,canvas.width,groundHeight);
+  ctx.fillRect(0,bottomGroundY,canvas.width,groundHeight); ctx.shadowBlur=0;
 }
-function drawScore(){ ctx.font="24px 'Press Start 2P'"; ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20; ctx.textAlign="center"; ctx.fillText(score,canvas.width/2,topGroundY-10); ctx.shadowBlur=0; }
+function drawScore(){ ctx.font="24px 'Press Start 2P'"; ctx.fillStyle="white"; ctx.textAlign="center"; ctx.fillText(score,canvas.width/2,50); }
 
-// Collision check
+// Collision check with shatter effect
 function checkCollisions(){
   for(let s of strikes){
-    let dx=Math.abs(player.x-s.x); let dy=Math.abs(player.y-s.y);
-    if(dx<player.width/2 && dy<player.height/2){ gameRunning=false; alert("You Died! Score: "+score); location.reload(); }
+    let dx=Math.abs(player.x-s.x); 
+    let dy = Math.abs(player.y - s.y); 
+    if(dx<player.width/2 && dy<player.height/2){
+      gameRunning=false;
+      spawnParticles(player.x,player.y,"white",50); // shatter
+      alert("You Died! Score: "+score); 
+      location.reload();
+    }
   }
 }
 
-// Game Loop
+// Game loop
 function gameLoop(){
   if(!gameRunning) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -225,12 +245,9 @@ function gameLoop(){
   requestAnimationFrame(gameLoop);
 }
 
-// Input
-function switchLane(){ player.targetY=player.targetY===topGroundY?bottomGroundY:topGroundY; spawnParticles(player.x,player.y,"white",30); score+=1; spawnFloatingScore(1); }
-document.addEventListener("keydown", e=>{ if(!gameRunning) return; if(["w"," ","ArrowUp"].includes(e.key)) switchLane(); if(["q","Tab"].includes(e.key)) destroyNearbyWhite(); });
-document.addEventListener("click", e=>{ if(!gameRunning) return; switchLane(); });
+// Lane switch and destroy
+function switchLane(){ player.targetY=player.targetY===topGroundY-groundHeight?bottomGroundY-groundHeight:topGroundY-groundHeight; spawnParticles(player.x,player.y,"white",30); score+=1; spawnFloatingScore(1); }
 function destroyNearbyWhite(){ for(let s of strikes){ if(s.type==="white" && Math.abs(s.x-player.x)<blockSize*2){ s.active=false; spawnParticles(s.x,s.y,"white",50); } } strikes=strikes.filter(s=>s.active); }
-document.getElementById("strikeButton").addEventListener("click",destroyNearbyWhite);
 
 // UI
 document.getElementById("startBtn").onclick = ()=>{
@@ -239,9 +256,12 @@ document.getElementById("startBtn").onclick = ()=>{
 };
 document.getElementById("howToBtn").onclick = ()=>{ document.getElementById("howToPlayBox").style.display="block"; };
 document.getElementById("closeHowTo").onclick = ()=>{ document.getElementById("howToPlayBox").style.display="none"; };
+document.getElementById("strikeButton").addEventListener("click",destroyNearbyWhite);
+
+// Resize
 window.addEventListener("resize", ()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
 
-// Best score
+// Save best score
 window.addEventListener("beforeunload", ()=>{ if(score>bestScore){ localStorage.setItem("ghostTrainBest", score); } });
 </script>
 </body>
