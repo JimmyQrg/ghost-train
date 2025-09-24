@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login | Classlink</title>
+  <link rel="icon" type="image/png" href="pausd-icon.png">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: white;
+      font-family: 'Orbitron', sans-serif;
+      color: white;
+    }
+    canvas {
+      display: block;
+    }
+    #ui {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    .button {
+      background: black;
+      color: white;
+      font-size: 28px;
+      padding: 20px;
+      margin: 10px;
+      width: 260px;
+      text-align: center;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 0 20px #000;
+      transition: 0.3s;
+    }
+    .button:hover {
+      box-shadow: 0 0 30px #666;
+    }
+    #howToPlayBox {
+      position: absolute;
+      top: 10%; left: 20%;
+      width: 60%; height: 70%;
+      background: black;
+      color: white;
+      border-radius: 20px;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 0 0 40px purple;
+      display: none;
+      z-index: 20;
+    }
+    #closeHowTo {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 32px;
+      cursor: pointer;
+      color: purple;
+    }
+    #strikeButton {
+      position: absolute;
+      bottom: 40px; right: 40px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: radial-gradient(circle, purple 40%, transparent 70%);
+      box-shadow: 0 0 30px purple;
+      border: 3px solid purple;
+      cursor: pointer;
+      display: none;
+      z-index: 5;
+      animation: glowPulse 1.2s infinite;
+    }
+    @keyframes glowPulse {
+      0% { box-shadow: 0 0 15px purple; }
+      50% { box-shadow: 0 0 35px purple; }
+      100% { box-shadow: 0 0 15px purple; }
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div class="button" id="startBtn">START</div>
+    <div class="button" id="howToBtn">HOW TO PLAY</div>
+  </div>
+
+  <div id="howToPlayBox">
+    <div id="closeHowTo">✕</div>
+    <h2>How to Play</h2>
+    <p>
+      Welcome to <b>Ghost Train Cube</b>.<br><br>
+      - Move between the top and bottom glowing rails using <b>W / Space / ↑</b> or click/tap.<br>
+      - Avoid cyan strikes.<br>
+      - Watch out for purple strikes: when close, they jump to the opposite rail!<br>
+      - White strikes pulse; destroy them with <b>Q / Tab</b> or by pressing the purple glowing button.<br>
+      - Collect gems floating in the middle line while switching rails.<br><br>
+      Glow everywhere, stay sharp, and survive as long as you can!
+    </p>
+  </div>
+
+  <div id="strikeButton"></div>
+  <canvas id="game"></canvas>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let gameRunning = false;
+    let objects = [];
+    let particles = [];
+    let gems = [];
+    let strikes = [];
+    let scrollSpeed = 4;
+    let blockSize = 50;
+    let player = {
+      x: canvas.width * 0.2,
+      y: canvas.height - 100,
+      lane: 1, // 0 = top, 1 = bottom
+      size: 40,
+    };
+
+    const topLane = canvas.height * 0.25;
+    const bottomLane = canvas.height * 0.75;
+
+    function resetPlayer() {
+      player.lane = 1;
+      player.y = bottomLane;
+    }
+
+    // Glow text
+    function glowText(text, x, y, color, size=30) {
+      ctx.font = `${size}px Orbitron`;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      ctx.fillText(text, x, y);
+      ctx.shadowBlur = 0;
+    }
+
+    // Particle
+    function spawnParticles(x,y,color,count=20) {
+      for (let i=0;i<count;i++) {
+        particles.push({
+          x,y,
+          dx:(Math.random()-0.5)*6,
+          dy:(Math.random()-0.5)*6,
+          size:Math.random()*6+2,
+          life:40,
+          color
+        });
+      }
+    }
+
+    function updateParticles() {
+      particles = particles.filter(p => p.life > 0);
+      for (let p of particles) {
+        p.x += p.dx;
+        p.y += p.dy;
+        p.life--;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur=0;
+      }
+    }
+
+    // Strikes
+    class Strike {
+      constructor(type, lane) {
+        this.type = type; // cyan, purple, white
+        this.lane = lane;
+        this.x = canvas.width + 100;
+        this.y = lane === 0 ? topLane : bottomLane;
+        this.size = 50;
+        this.active = true;
+        this.timer = 0;
+      }
+      update() {
+        this.x -= scrollSpeed;
+        if (this.type === "purple") {
+          // If near player, flip
+          let dist = this.x - player.x;
+          if (dist < blockSize*4 && dist > 0 && this.lane === player.lane) {
+            this.lane = this.lane===0?1:0;
+            this.y = this.lane===0?topLane:bottomLane;
+            spawnParticles(this.x,this.y,"purple",25);
+          }
+        }
+        if (this.type === "white") {
+          this.timer++;
+        }
+      }
+      draw() {
+        ctx.shadowBlur=20;
+        if (this.type==="cyan") {
+          ctx.fillStyle="cyan"; ctx.shadowColor="cyan";
+        }
+        if (this.type==="purple") {
+          ctx.fillStyle="purple"; ctx.shadowColor="purple";
+        }
+        if (this.type==="white") {
+          let glow = Math.sin(this.timer/10)>0? "white":"gray";
+          ctx.fillStyle=glow; ctx.shadowColor="white";
+        }
+        ctx.fillRect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
+        ctx.shadowBlur=0;
+      }
+    }
+
+    // Gem
+    class Gem {
+      constructor(x) {
+        this.x = x;
+        this.y = canvas.height/2;
+        this.size = 20;
+        this.collected = false;
+      }
+      update() {
+        this.x -= scrollSpeed;
+        if (!this.collected && Math.abs(this.x-player.x)<30 && Math.abs(this.y-player.y)<30) {
+          this.collected = true;
+          spawnParticles(this.x,this.y,"aqua",30);
+        }
+      }
+      draw() {
+        if (!this.collected) {
+          ctx.fillStyle="aqua";
+          ctx.shadowColor="aqua";
+          ctx.shadowBlur=20;
+          ctx.beginPath();
+          ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+          ctx.fill();
+          ctx.shadowBlur=0;
+        }
+      }
+    }
+
+    function spawnStrike() {
+      let typePick = Math.random();
+      let type = "cyan";
+      if (typePick>0.7 && typePick<0.9) type="purple";
+      if (typePick>=0.9) type="white";
+      let lane = Math.random()<0.5?0:1;
+      strikes.push(new Strike(type,lane));
+    }
+
+    function spawnGem() {
+      gems.push(new Gem(canvas.width+100));
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle="white";
+      ctx.shadowColor="white";
+      ctx.shadowBlur=20;
+      ctx.fillRect(player.x-player.size/2,player.y-player.size/2,player.size,player.size);
+      ctx.shadowBlur=0;
+    }
+
+    function drawGround() {
+      ctx.strokeStyle="white";
+      ctx.shadowColor="white";
+      ctx.shadowBlur=20;
+      ctx.lineWidth=4;
+      ctx.beginPath();
+      ctx.moveTo(0,topLane);
+      ctx.lineTo(canvas.width,topLane);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0,bottomLane);
+      ctx.lineTo(canvas.width,bottomLane);
+      ctx.stroke();
+      ctx.shadowBlur=0;
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawGround();
+      drawPlayer();
+      for (let s of strikes) {
+        s.update();
+        s.draw();
+      }
+      strikes = strikes.filter(s=>s.x>-100);
+      for (let g of gems) {
+        g.update();
+        g.draw();
+      }
+      gems = gems.filter(g=>g.x>-100 && !g.collected);
+      updateParticles();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Input
+    function switchLane() {
+      player.lane = player.lane===0?1:0;
+      player.y = player.lane===0?topLane:bottomLane;
+      spawnParticles(player.x,player.y,"white",30);
+    }
+
+    document.addEventListener("keydown", e=>{
+      if (!gameRunning) return;
+      if (["w"," ","ArrowUp"].includes(e.key)) {
+        switchLane();
+      }
+      if (["q","Tab"].includes(e.key)) {
+        destroyNearbyWhite();
+      }
+    });
+
+    document.addEventListener("click", e=>{
+      if (!gameRunning) return;
+      switchLane();
+    });
+
+    function destroyNearbyWhite() {
+      for (let s of strikes) {
+        if (s.type==="white" && Math.abs(s.x-player.x)<blockSize && s.lane===player.lane) {
+          s.active=false;
+          spawnParticles(s.x,s.y,"white",50);
+        }
+      }
+      strikes = strikes.filter(s=>s.active);
+    }
+
+    document.getElementById("strikeButton").addEventListener("click", destroyNearbyWhite);
+
+    // UI
+    document.getElementById("startBtn").onclick = ()=>{
+      document.getElementById("ui").style.display="none";
+      document.getElementById("strikeButton").style.display="block";
+      gameRunning=true;
+      resetPlayer();
+      setInterval(spawnStrike,2000);
+      setInterval(spawnGem,3500);
+      gameLoop();
+    };
+
+    document.getElementById("howToBtn").onclick = ()=>{
+      document.getElementById("howToPlayBox").style.display="block";
+    };
+    document.getElementById("closeHowTo").onclick = ()=>{
+      document.getElementById("howToPlayBox").style.display="none";
+    };
+
+    window.addEventListener("resize", ()=>{
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
