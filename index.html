@@ -6,7 +6,6 @@
 <link rel="icon" type="image/png" href="pausd-icon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
 body { margin:0; overflow:hidden; background:black; font-family:'Press Start 2P', cursive; color:white; }
 canvas { display:block; }
 
@@ -34,11 +33,7 @@ canvas { display:block; }
   box-shadow:0 0 30px purple; border:3px solid purple; cursor:pointer; display:none; z-index:5;
   animation: glowPulse 1.2s infinite;
 }
-@keyframes glowPulse {
-  0% { box-shadow:0 0 15px purple; }
-  50% { box-shadow:0 0 35px purple; }
-  100% { box-shadow:0 0 15px purple; }
-}
+@keyframes glowPulse { 0% { box-shadow:0 0 15px purple; } 50% { box-shadow:0 0 35px purple; } 100% { box-shadow:0 0 15px purple; } }
 </style>
 </head>
 <body>
@@ -52,14 +47,15 @@ canvas { display:block; }
   <div id="closeHowTo">✕</div>
   <h2>How to Play</h2>
   <p>
-    Welcome to <b>Ghost Train Cube</b>.<br><br>
-    - Move between top and bottom glowing platforms using <b>W / Space / ↑</b> or click/tap.<br>
-    - Avoid red strikes.<br>
-    - Purple strikes jump lanes faster along a sloped glowing path.<br>
-    - White strikes pulse; destroy them with <b>Q / Tab</b> or the purple button.<br>
-    - Collect gems floating in the middle while switching platforms.<br>
-    - Score: +1 each lane switch, +10 for gem collected.<br>
-    Enjoy glowing particles, fast smooth animations, and neon effects!
+    <b>Controls:</b> Press <b>W / Space / ↑ / Click / Tap</b> to switch between top and bottom grounds.<br>
+    Press <b>Q / Tab / Purple Button</b> to destroy white strikes within 2 blocks.<br><br>
+    <b>Objects:</b><br>
+    - Red Strikes: triangular obstacles, die immediately on contact.<br>
+    - Purple Strikes: jumps once from lane to lane quickly, avoid them.<br>
+    - White Strikes: glowing triangles, can be destroyed if close enough.<br>
+    - Gems: small white diamonds, collect for +10 score.<br><br>
+    <b>Scoring:</b> +1 per successful ground switch, +10 per gem.<br>
+    <b>Goal:</b> Survive as long as possible, avoid strikes, collect gems.
   </p>
 </div>
 
@@ -71,19 +67,19 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-let gameRunning=false, particles=[], gems=[], strikes=[], floatingScores=[];
+let gameRunning=false, particles=[], gems=[], strikes=[], floatingScores=[], trails=[];
 let scrollSpeed=10, blockSize=50, score=0;
 let bestScore = localStorage.getItem("ghostTrainBest")||0;
 document.getElementById("bestScore").textContent="Best Score: "+bestScore;
 
-const groundHeight=80;
+const groundHeight=8; // thin ground
 const topGroundY=canvas.height*0.25;
 const bottomGroundY=canvas.height*0.75;
-let player={x:canvas.width*0.2, y:bottomGroundY-groundHeight, lane:1, size:40, targetY:bottomGroundY-groundHeight, vy:0};
+let player={x:canvas.width*0.2, y:bottomGroundY, lane:1, size:40, targetY:bottomGroundY, vy:0, width:30, height:30};
 
 // Particle system
 function spawnParticles(x,y,color,count=20){
-  for(let i=0;i<count;i++) particles.push({x,y,dx:(Math.random()-0.5)*6,dy:(Math.random()-0.5)*6,size:Math.random()*6+2,life:40,color});
+  for(let i=0;i<count;i++) particles.push({x,y,dx:(Math.random()-0.5)*6,dy:(Math.random()-0.5)*6,size:Math.random()*6+2,life:40,color:color||`hsl(${Math.random()*360},100%,70%)`});
 }
 function updateParticles(){
   particles=particles.filter(p=>p.life>0);
@@ -94,8 +90,16 @@ function updateParticles(){
   }
 }
 
+// Neon trail
+function spawnTrail(x,y){ trails.push({x,y,alpha:1}); }
+function updateTrails(){
+  for(let t of trails){ t.alpha-=0.03; ctx.fillStyle="white"; ctx.globalAlpha=t.alpha; ctx.shadowColor="white"; ctx.shadowBlur=15;
+    ctx.beginPath(); ctx.arc(t.x,t.y,player.size/2,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0; ctx.globalAlpha=1; }
+  trails=trails.filter(t=>t.alpha>0);
+}
+
 // Floating scores
-function spawnFloatingScore(val){ floatingScores.push({ val, x:canvas.width/2+60, y:topGroundY-40, alpha:1 }); }
+function spawnFloatingScore(val){ floatingScores.push({ val, x:canvas.width/2+60, y:topGroundY-20, alpha:1 }); }
 function updateFloatingScores(){
   for(let f of floatingScores){ f.y-=0.5; f.alpha-=0.02;
     ctx.font="16px 'Press Start 2P'"; ctx.fillStyle="yellow"; ctx.globalAlpha=f.alpha;
@@ -108,8 +112,8 @@ function updateFloatingScores(){
 class Strike{
   constructor(type,lane){
     this.type=type; this.lane=lane;
-    this.x=canvas.width+100; this.y=lane===0?topGroundY-groundHeight:bottomGroundY-groundHeight;
-    this.size=50; this.active=true; this.timer=0; this.pathPoints=[]; this.moving=false;
+    this.x=canvas.width+100; this.y=lane===0?topGroundY:bottomGroundY;
+    this.size=40; this.active=true; this.timer=0; this.pathPoints=[]; this.moving=false;
     this.speed = type==="purple"?scrollSpeed*1.5:scrollSpeed;
   }
   update(){
@@ -118,16 +122,13 @@ class Strike{
       let dist=this.x-player.x;
       if(dist<blockSize*4 && dist>0 && this.lane===player.lane && !this.moving){
         let targetLane=this.lane===0?1:0;
-        let startY=this.y, endY=targetLane===0?topGroundY-groundHeight:bottomGroundY-groundHeight;
-        let frames=15; this.pathPoints=[];
-        for(let i=0;i<=frames;i++){ 
-          let t=i/frames; 
-          let y=startY+(endY-startY)*t + 15*Math.sin(t*Math.PI*2); 
-          this.pathPoints.push(y); 
-        }
-        this.moving=true; this.jumpFrame=0; this.lane=targetLane;
+        this.y=this.lane===0?topGroundY:bottomGroundY;
+        this.targetY=targetLane===0?topGroundY:bottomGroundY;
+        this.moving=true;
       }
-      if(this.moving){ this.y=this.pathPoints[this.jumpFrame]||this.y; this.jumpFrame++; if(this.jumpFrame>=this.pathPoints.length) this.moving=false; }
+      if(this.moving){
+        this.y += (this.targetY-this.y)*0.5; if(Math.abs(this.y-this.targetY)<1){ this.y=this.targetY; this.moving=false; this.lane=this.targetY===topGroundY?0:1;}
+      }
     }
     if(this.type==="white") this.timer++;
   }
@@ -139,77 +140,94 @@ class Strike{
     if(this.type==="white") color=Math.sin(this.timer/10)>0?"white":"gray";
 
     ctx.fillStyle=color; ctx.shadowColor=color;
-    // Draw triangular shape
     ctx.beginPath();
-    if(this.lane===0){
-      ctx.moveTo(this.x, this.y-this.size/2);
-      ctx.lineTo(this.x-this.size/2, this.y+this.size/2);
-      ctx.lineTo(this.x+this.size/2, this.y+this.size/2);
+    if(this.lane===0){ // top lane
+      ctx.moveTo(this.x,this.y-this.size/2); ctx.lineTo(this.x-this.size/2,this.y+this.size/2); ctx.lineTo(this.x+this.size/2,this.y+this.size/2);
     } else {
-      ctx.moveTo(this.x, this.y+this.size/2);
-      ctx.lineTo(this.x-this.size/2, this.y-this.size/2);
-      ctx.lineTo(this.x+this.size/2, this.y-this.size/2);
+      ctx.moveTo(this.x,this.y+this.size/2); ctx.lineTo(this.x-this.size/2,this.y-this.size/2); ctx.lineTo(this.x+this.size/2,this.y-this.size/2);
     }
     ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
-
-    if(this.type==="purple" && this.moving){
-      ctx.strokeStyle="purple"; ctx.lineWidth=2; ctx.shadowColor="purple"; ctx.shadowBlur=10;
-      ctx.beginPath(); ctx.moveTo(this.x+this.speed, this.pathPoints[0]);
-      for(let i=1;i<this.jumpFrame;i++) ctx.lineTo(this.x+this.speed-i, this.pathPoints[i]); ctx.stroke(); ctx.shadowBlur=0;
-    }
   }
 }
 
 // Gems
 class Gem{
-  constructor(x){ this.x=x; this.y=canvas.height/2; this.size=20; this.collected=false; }
-  update(){ this.x-=scrollSpeed; this.y+=Math.sin(Date.now()/200)*2;
-    if(!this.collected && Math.abs(this.x-player.x)<30 && Math.abs(this.y-player.y)<30){ this.collected=true; spawnParticles(this.x,this.y,"aqua",30); score+=10; spawnFloatingScore(10); }
+  constructor(x){ this.x=x; this.y=(topGroundY+bottomGroundY)/2; this.size=12; this.collected=false; }
+  update(){ this.x-=scrollSpeed;
+    if(!this.collected && Math.abs(this.x-player.x)<30 && Math.abs(this.y-player.y)<30){ this.collected=true; spawnParticles(this.x,this.y,"white",30); score+=10; spawnFloatingScore(10); }
   }
-  draw(){ if(!this.collected){ ctx.fillStyle="aqua"; ctx.shadowColor="aqua"; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0; } }
+  draw(){ if(!this.collected){
+    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(Math.PI/4);
+    ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20;
+    ctx.fillRect(-this.size/2,-this.size/2,this.size,this.size); ctx.shadowBlur=0;
+    ctx.restore();
+  }}
 }
 
 // Spawn
-function spawnStrike(){ let t=Math.random(); let type="red"; if(t>0.7 && t<0.9) type="purple"; if(t>=0.9) type="white"; let lane=Math.random()<0.5?0:1; strikes.push(new Strike(type,lane)); }
-function spawnGem(){ gems.push(new Gem(canvas.width+100)); }
+let lastSpawnX=0;
+function spawnStrike(){ 
+  let x=canvas.width+100;
+  if(x-lastSpawnX<blockSize*2) return; // avoid spawning too close
+  lastSpawnX=x;
+  let t=Math.random(); let type="red"; if(t>0.7 && t<0.9) type="purple"; if(t>=0.9) type="white";
+  let lane=Math.random()<0.5?0:1; strikes.push(new Strike(type,lane)); 
+}
+function spawnGem(){ 
+  let x=canvas.width+100;
+  if(x-lastSpawnX<blockSize*2) return;
+  lastSpawnX=x;
+  gems.push(new Gem(x)); 
+}
 
 // Draw
 function drawPlayer(){
-  player.vy += (player.targetY-player.y)*0.6; player.y+=player.vy; player.vy*=0.6;
+  player.y += (player.targetY-player.y)*0.5; 
+  spawnTrail(player.x,player.y);
   ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20;
-  ctx.fillRect(player.x-player.size/2,player.y-player.size/2,player.size,player.size); ctx.shadowBlur=0;
+  ctx.fillRect(player.x-player.width/2,player.y-player.height,player.width,player.height); ctx.shadowBlur=0;
   spawnParticles(player.x-10,player.y,"white",1);
 }
 function drawGround(){
-  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20;
-  ctx.fillRect(0,topGroundY-groundHeight,canvas.width,groundHeight);
-  ctx.fillRect(0,bottomGroundY-groundHeight,canvas.width,groundHeight); ctx.shadowBlur=0;
+  let glowOffset=Math.sin(Date.now()/200)*6;
+  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=glowOffset;
+  ctx.fillRect(0,topGroundY,canvas.width,2);
+  ctx.fillRect(0,bottomGroundY,canvas.width,2); ctx.shadowBlur=0;
 }
 function drawScore(){ ctx.font="24px 'Press Start 2P'"; ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20; ctx.textAlign="center"; ctx.fillText(score,canvas.width/2,topGroundY-10); ctx.shadowBlur=0; }
 
+// Collision check
+function checkCollisions(){
+  for(let s of strikes){
+    let dx=Math.abs(player.x-s.x); let dy=Math.abs(player.y-s.y);
+    if(dx<player.width/2 && dy<player.height/2){ gameRunning=false; alert("You Died! Score: "+score); location.reload(); }
+  }
+}
+
 // Game Loop
 function gameLoop(){
+  if(!gameRunning) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawGround(); drawPlayer();
+  drawGround(); drawPlayer(); updateTrails();
   for(let s of strikes){ s.update(); s.draw(); }
   strikes=strikes.filter(s=>s.x>-100 && s.active);
   for(let g of gems){ g.update(); g.draw(); }
   gems=gems.filter(g=>g.x>-100 && !g.collected);
-  updateParticles(); updateFloatingScores(); drawScore();
+  updateParticles(); updateFloatingScores(); drawScore(); checkCollisions();
   requestAnimationFrame(gameLoop);
 }
 
 // Input
-function switchLane(){ player.lane=player.lane===0?1:0; player.targetY=player.lane===0?topGroundY-groundHeight:bottomGroundY-groundHeight; spawnParticles(player.x,player.y,"white",30); score+=1; spawnFloatingScore(1); }
+function switchLane(){ player.targetY=player.targetY===topGroundY?bottomGroundY:topGroundY; spawnParticles(player.x,player.y,"white",30); score+=1; spawnFloatingScore(1); }
 document.addEventListener("keydown", e=>{ if(!gameRunning) return; if(["w"," ","ArrowUp"].includes(e.key)) switchLane(); if(["q","Tab"].includes(e.key)) destroyNearbyWhite(); });
 document.addEventListener("click", e=>{ if(!gameRunning) return; switchLane(); });
-function destroyNearbyWhite(){ for(let s of strikes){ if(s.type==="white" && Math.abs(s.x-player.x)<blockSize && s.lane===player.lane){ s.active=false; spawnParticles(s.x,s.y,"white",50); } } strikes=strikes.filter(s=>s.active); }
+function destroyNearbyWhite(){ for(let s of strikes){ if(s.type==="white" && Math.abs(s.x-player.x)<blockSize*2){ s.active=false; spawnParticles(s.x,s.y,"white",50); } } strikes=strikes.filter(s=>s.active); }
 document.getElementById("strikeButton").addEventListener("click",destroyNearbyWhite);
 
 // UI
 document.getElementById("startBtn").onclick = ()=>{
   document.getElementById("ui").style.display="none"; document.getElementById("strikeButton").style.display="block";
-  gameRunning=true; player.vy=0; setInterval(spawnStrike,1500); setInterval(spawnGem,3500); gameLoop();
+  gameRunning=true; setInterval(spawnStrike,1500); setInterval(spawnGem,3500); gameLoop();
 };
 document.getElementById("howToBtn").onclick = ()=>{ document.getElementById("howToPlayBox").style.display="block"; };
 document.getElementById("closeHowTo").onclick = ()=>{ document.getElementById("howToPlayBox").style.display="none"; };
