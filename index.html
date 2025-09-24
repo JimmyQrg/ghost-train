@@ -13,6 +13,8 @@ canvas { display:block; }
   position:absolute; top:0; left:0; width:100%; height:100%;
   background:black; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10;
 }
+#ui h1 { font-size:36px; color:white; text-shadow:0 0 20px white; margin-bottom:20px; text-align:center; }
+
 .button {
   background:transparent; color:white; font-size:16px;
   padding:16px; margin:10px; width:260px; text-align:center;
@@ -21,23 +23,28 @@ canvas { display:block; }
 }
 .button:hover { text-shadow:0 0 20px white; box-shadow:0 0 20px white; }
 #bestScore { margin-top:10px; font-size:12px; color:white; text-shadow:0 0 8px purple; }
+
 #howToPlayBox {
   position:absolute; top:10%; left:20%; width:60%; height:70%;
   background:black; color:white; border-radius:16px; padding:20px;
   overflow-y:auto; box-shadow:0 0 40px purple; display:none; z-index:20;
 }
+#howToPlayBox h1 { font-size:28px; color:white; text-shadow:0 0 15px white; text-align:center; }
+#howToPlayBox h2 { font-size:20px; color:white; text-shadow:0 0 10px white; margin-top:5px; text-align:center; }
 #closeHowTo { position:absolute; top:10px; right:20px; font-size:24px; cursor:pointer; color:purple; }
+
 #strikeButton {
   position:absolute; bottom:40px; right:40px; width:80px; height:80px; border-radius:50%;
   background: radial-gradient(circle, purple 40%, transparent 70%);
   box-shadow:0 0 30px purple; border:3px solid purple; cursor:pointer; display:none; z-index:5;
   animation: glowPulse 1.2s infinite;
 }
-@keyframes glowPulse { 0% { box-shadow:0 0 15px purple; } 50% { box-shadow:0 0 35px purple; } 100% { box-shadow:0 0 15px purple; } }
+@keyframes glowPulse { 0% { box-shadow:0 0 15px purple; } 50% { box-shadow:0 0 35px purple; } 100% { box-shadow:0 0 15px purple; }
 </style>
 </head>
 <body>
 <div id="ui">
+  <h1>GHOST TRAIN CUBE</h1>
   <div class="button" id="startBtn">START</div>
   <div class="button" id="howToBtn">HOW TO PLAY</div>
   <div id="bestScore">Best Score: 0</div>
@@ -45,6 +52,7 @@ canvas { display:block; }
 
 <div id="howToPlayBox">
   <div id="closeHowTo">✕</div>
+  <h1>GHOST TRAIN CUBE</h1>
   <h2>How to Play</h2>
   <p>
     <b>Controls:</b> Press <b>W / Space / ↑ / Click / Tap</b> to switch between top and bottom grounds.<br>
@@ -168,7 +176,7 @@ class Gem{
 let lastSpawnX=0;
 function spawnStrike(){ 
   let x=canvas.width+100;
-  if(x-lastSpawnX<blockSize*2) return; // avoid spawning too close
+  if(x-lastSpawnX<blockSize*2) return;
   lastSpawnX=x;
   let t=Math.random(); let type="red"; if(t>0.7 && t<0.9) type="purple"; if(t>=0.9) type="white";
   let lane=Math.random()<0.5?0:1; strikes.push(new Strike(type,lane)); 
