@@ -5,170 +5,169 @@
 <title>Login | Classlink</title>
 <link rel="icon" type="image/png" href="pausd-icon.png">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-body { margin:0; overflow:hidden; background:black; font-family:'Press Start 2P', cursive; color:white; }
-canvas { display:block; }
-
-#ui {
-  position:absolute; top:0; left:0; width:100%; height:100%;
-  background:black; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10;
-}
-#ui h1 { font-size:36px; color:white; text-shadow:0 0 20px white; margin-bottom:20px; text-align:center; }
-
-.button {
-  background:transparent; color:white; font-size:16px;
-  padding:16px; margin:10px; width:260px; text-align:center;
-  border:3px solid white; border-radius:8px; cursor:pointer;
-  text-shadow: 0 0 10px white; box-shadow: 0 0 10px white; transition:0.3s;
-}
-.button:hover { text-shadow:0 0 20px white; box-shadow:0 0 20px white; }
-#bestScore { margin-top:10px; font-size:12px; color:white; text-shadow:0 0 8px purple; }
-
-#howToPlayBox {
-  position:absolute; top:10%; left:20%; width:60%; height:70%;
-  background:black; color:white; border-radius:16px; padding:20px;
-  overflow-y:auto; box-shadow:0 0 40px purple; display:none; z-index:20;
-  line-height:1.8;
-}
-#howToPlayBox h1 { font-size:28px; color:white; text-shadow:0 0 15px white; text-align:center; }
-#howToPlayBox h2 { font-size:20px; color:white; text-shadow:0 0 10px white; margin-top:5px; text-align:center; }
-#howToPlayBox p b { display:block; margin-top:10px; }
-#closeHowTo { position:absolute; top:10px; right:20px; font-size:24px; cursor:pointer; color:purple; }
-
-#strikeButton {
-  position:absolute; bottom:40px; right:40px; width:80px; height:80px; border-radius:50%;
-  background: radial-gradient(circle, purple 40%, transparent 70%);
-  box-shadow:0 0 30px purple; border:3px solid purple; cursor:pointer; display:none; z-index:5;
-  animation: glowPulse 1.2s infinite;
-}
-@keyframes glowPulse { 0% { box-shadow:0 0 15px purple; } 50% { box-shadow:0 0 35px purple; } 100% { box-shadow:0 0 15px purple; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    font-family: 'Press Start 2P', monospace;
+  }
+  canvas { display: block; }
+  #ui {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: black; color: white; text-align: center;
+  }
+  #ui h1 {
+    font-size: 32px; color: white; text-shadow: 0 0 20px white;
+    margin-bottom: 30px;
+  }
+  .menuBtn {
+    border: 2px solid white; color: white;
+    padding: 12px 40px; margin: 12px;
+    font-size: 14px; cursor: pointer;
+    background: transparent; font-family: 'Press Start 2P', monospace;
+    text-shadow: 0 0 10px white;
+    box-shadow: 0 0 15px white inset, 0 0 15px white;
+  }
+  #howToPlayBox {
+    position: absolute; top: 10%; left: 20%; width: 60%; height: 70%;
+    background: rgba(0,0,0,0.9); border: 2px solid white;
+    color: white; font-size: 12px; overflow-y: auto; display: none;
+    padding: 20px; line-height: 1.8; text-align: left;
+  }
+  #howToPlayBox h2 { text-align: center; margin-top: 0; }
+  #closeHowTo {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 20px; cursor: pointer; color: white;
+  }
+  #strikeButton {
+    position: absolute; bottom: 40px; right: 40px;
+    width: 80px; height: 80px; border-radius: 50%;
+    border: 2px solid purple; background: black;
+    box-shadow: 0 0 20px purple, inset 0 0 20px purple;
+    display: none; cursor: pointer;
+  }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
+<canvas id="gameCanvas"></canvas>
+
 <div id="ui">
   <h1>GHOST TRAIN CUBE</h1>
-  <div class="button" id="startBtn">START</div>
-  <div class="button" id="howToBtn">HOW TO PLAY</div>
-  <div id="bestScore">Best Score: 0</div>
+  <button id="startBtn" class="menuBtn">START</button>
+  <button id="howToBtn" class="menuBtn">HOW TO PLAY</button>
+  <p>Best: <span id="bestScoreText">0</span></p>
 </div>
 
 <div id="howToPlayBox">
-  <div id="closeHowTo">✕</div>
-  <h1>GHOST TRAIN CUBE</h1>
-  <h2>How to Play</h2>
-  <p>
-    <b>Controls:</b> Press <b>W / Space / ↑ / Click / Tap</b> to switch between top and bottom grounds.<br>
-    Press <b>Q / Tab / Purple Button</b> to destroy white strikes within 2 blocks.<br><br>
-    <b>Objects:</b><br>
-    - Red Strikes: triangular obstacles, die immediately on contact.<br>
-    - Purple Strikes: jumps once from lane to lane quickly, avoid them.<br>
-    - White Strikes: glowing triangles, can be destroyed if close enough.<br>
-    - Gems: small white diamonds, collect for +10 score.<br><br>
-    <b>Scoring:</b> +1 per successful ground switch, +10 per gem.<br>
-    <b>Goal:</b> Survive as long as possible, avoid strikes, collect gems.
-  </p>
+  <span id="closeHowTo">✖</span>
+  <h2>GHOST TRAIN CUBE</h2>
+  <h3>How to Play</h3>
+  <p><b>Controls:</b>  
+  W / Space / ↑ / Tap / Click → Switch grounds  
+  Q / Tab / Purple Button → Destroy nearby white strikes</p>
+  <p><b>Rules:</b><br>
+  • Avoid all strikes.  
+  • Red = regular strike.  
+  • Purple = faster strike, jumps once to the other ground.  
+  • White = destroyable if within 2 blocks.  
+  • Gems = collect for +10 score (middle lane).</p>
+  <p><b>Scoring:</b><br>
+  +1 each time you switch grounds.  
+  +10 for each gem collected.</p>
 </div>
 
-<div id="strikeButton"></div>
-<canvas id="game"></canvas>
+<button id="strikeButton"></button>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth; canvas.height=window.innerHeight;
 
-let gameRunning=false, particles=[], gems=[], strikes=[], floatingScores=[], trails=[];
-let scrollSpeed=10, blockSize=50, score=0;
-let bestScore = localStorage.getItem("ghostTrainBest")||0;
-document.getElementById("bestScore").textContent="Best Score: "+bestScore;
+// Globals
+let gameRunning=false, score=0, bestScore=localStorage.getItem("ghostTrainBest")||0;
+document.getElementById("bestScoreText").textContent=bestScore;
 
-const gridCols = Math.floor(canvas.width / blockSize);
-const topGroundY=canvas.height*0.25;
-const bottomGroundY=canvas.height*0.75;
-const groundHeight = 20;
+let groundHeight=8, scrollSpeed=6;
+let topGroundY=100, bottomGroundY=canvas.height-100;
 
-let player={x:canvas.width*0.2, y:bottomGroundY-groundHeight, lane:1, size:40, targetY:bottomGroundY-groundHeight, width:30, height:30};
+// Player
+const player={x:150,y:bottomGroundY-30,width:30,height:30,targetY:bottomGroundY-30,lane:1};
 
-// Key state for single-trigger actions
-const keyState = {};
-document.addEventListener("keydown", e => {
-  if(!gameRunning) return;
-  if(keyState[e.key]) return;
-  keyState[e.key] = true;
-  if(["w"," ","ArrowUp"].includes(e.key)) switchLane();
-  if(["q","Tab"].includes(e.key)) destroyNearbyWhite();
-});
-document.addEventListener("keyup", e => { keyState[e.key] = false; });
+// Arrays
+let strikes=[], gems=[], particles=[], floatingScores=[], trails=[];
 
-// Particle system
-function spawnParticles(x,y,color,count=20){
-  for(let i=0;i<count;i++) particles.push({x,y,dx:(Math.random()-0.5)*6,dy:(Math.random()-0.5)*6,size:Math.random()*6+2,life:40,color:color||`hsl(${Math.random()*360},100%,70%)`});
+// Particles
+function spawnParticles(x,y,color,count){
+  for(let i=0;i<count;i++){
+    particles.push({x,y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,
+      life:40,color});
+  }
 }
 function updateParticles(){
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;});
   particles=particles.filter(p=>p.life>0);
-  for(let p of particles){
-    p.x+=p.dx; p.y+=p.dy; p.life--;
-    ctx.fillStyle=p.color; ctx.shadowColor=p.color; ctx.shadowBlur=20;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
-  }
+  particles.forEach(p=>{
+    ctx.fillStyle=p.color; ctx.globalAlpha=p.life/40;
+    ctx.fillRect(p.x,p.y,3,3); ctx.globalAlpha=1;
+  });
 }
 
-// Neon trail
-function spawnTrail(x,y){ trails.push({x,y,alpha:1}); }
-function updateTrails(){
-  for(let t of trails){ t.alpha-=0.03; ctx.fillStyle="white"; ctx.globalAlpha=t.alpha; ctx.shadowColor="white"; ctx.shadowBlur=15;
-    ctx.beginPath(); ctx.arc(t.x,t.y,player.size/2,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0; ctx.globalAlpha=1; }
-  trails=trails.filter(t=>t.alpha>0);
+// Floating score
+function spawnFloatingScore(val){
+  floatingScores.push({x:canvas.width/2+60,y:50,text:"+"+val,life:40});
 }
-
-// Floating scores
-function spawnFloatingScore(val){ floatingScores.push({ val, x:canvas.width/2+60, y:topGroundY-30, alpha:1 }); }
 function updateFloatingScores(){
-  for(let f of floatingScores){ f.y-=0.5; f.alpha-=0.02;
-    ctx.font="16px 'Press Start 2P'"; ctx.fillStyle="yellow"; ctx.globalAlpha=f.alpha;
-    ctx.shadowColor="yellow"; ctx.shadowBlur=10; ctx.fillText("+"+f.val,f.x,f.y); ctx.shadowBlur=0; ctx.globalAlpha=1;
-  }
-  floatingScores=floatingScores.filter(f=>f.alpha>0);
+  floatingScores.forEach(f=>{f.y-=0.5;f.life--;});
+  floatingScores=floatingScores.filter(f=>f.life>0);
+  ctx.fillStyle="yellow"; ctx.textAlign="left"; ctx.font="12px 'Press Start 2P'";
+  floatingScores.forEach(f=>{ctx.fillText(f.text,f.x,f.y);});
 }
 
-// Strikes
+// Trails
+function spawnTrail(x,y){
+  trails.push({x,y,life:25});
+}
+function updateTrails(){
+  trails.forEach(t=>{t.life--;});
+  trails=trails.filter(t=>t.life>0);
+  trails.forEach(t=>{
+    ctx.fillStyle="rgba(255,255,255,"+(t.life/25)+")";
+    ctx.fillRect(t.x-2,t.y-2,4,4);
+  });
+}
+
+// Strike
 class Strike{
   constructor(type,lane){
-    this.type=type; this.lane=lane;
-    this.x=canvas.width+100;
-    this.y=lane===0?topGroundY-groundHeight:bottomGroundY;
-    this.size=40; this.active=true; this.timer=0; this.moving=false;
-    this.speed = type==="purple"?scrollSpeed*1.5:scrollSpeed;
+    this.type=type; this.lane=lane; this.active=true; this.size=40; this.x=canvas.width+60;
+    this.y=(lane===0?topGroundY:bottomGroundY)-(lane===0?0:this.size);
+    this.timer=0; this.jumped=false;
   }
   update(){
-    this.x-=this.speed;
-    if(this.type==="purple"){
-      let dist=this.x-player.x;
-      if(dist<blockSize*4 && dist>0 && this.lane===player.lane && !this.moving){
-        let targetLane=this.lane===0?1:0;
-        this.targetY=targetLane===0?topGroundY-groundHeight:bottomGroundY;
-        this.moving=true;
-      }
-      if(this.moving){
-        this.y += (this.targetY-this.y)*0.5; if(Math.abs(this.y-this.targetY)<1){ this.y=this.targetY; this.moving=false; this.lane=this.targetY===topGroundY-groundHeight?0:1;}
-      }
+    this.x-=(this.type==="purple"?scrollSpeed*1.5:scrollSpeed);
+    this.timer++;
+    if(this.type==="purple" && !this.jumped && this.x<canvas.width/2){
+      this.lane=this.lane===0?1:0; this.y=(this.lane===0?topGroundY:bottomGroundY)-(this.lane===0?0:this.size);
+      this.jumped=true;
     }
-    if(this.type==="white") this.timer++;
   }
   draw(){
-    ctx.shadowBlur=15;
-    let color="white";
-    if(this.type==="red") color="red";
+    let color="red";
     if(this.type==="purple") color="purple";
     if(this.type==="white") color=Math.sin(this.timer/10)>0?"white":"gray";
-
-    ctx.fillStyle=color; ctx.shadowColor=color;
+    ctx.fillStyle=color; ctx.shadowColor=color; ctx.shadowBlur=15;
     ctx.beginPath();
-    // Triangular strike
-    if(this.lane===0){ // top ground
-      ctx.moveTo(this.x, this.y); ctx.lineTo(this.x-this.size/2,this.y+this.size); ctx.lineTo(this.x+this.size/2,this.y+this.size);
-    } else { // bottom ground
-      ctx.moveTo(this.x, this.y+this.size); ctx.lineTo(this.x-this.size/2,this.y); ctx.lineTo(this.x+this.size/2,this.y);
+    if(this.lane===0){ // top ground, hanging
+      ctx.moveTo(this.x,this.y);
+      ctx.lineTo(this.x-this.size/2,this.y+this.size);
+      ctx.lineTo(this.x+this.size/2,this.y+this.size);
+    }else{ // bottom ground, standing
+      ctx.moveTo(this.x,this.y+this.size);
+      ctx.lineTo(this.x-this.size/2,this.y);
+      ctx.lineTo(this.x+this.size/2,this.y);
     }
     ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
   }
@@ -176,60 +175,106 @@ class Strike{
 
 // Gems
 class Gem{
-  constructor(x){ this.x=x; this.y=(topGroundY+bottomGroundY)/2; this.size=12; this.collected=false; }
-  update(){ this.x-=scrollSpeed;
-    if(!this.collected && Math.abs(this.x-player.x)<30 && Math.abs(this.y-player.y)<30){ 
-      this.collected=true; spawnParticles(this.x,this.y,"white",30); score+=10; spawnFloatingScore(10); 
+  constructor(x){
+    this.x=x; this.y=(topGroundY+bottomGroundY)/2; this.size=12; this.collected=false;
+  }
+  update(){
+    this.x-=scrollSpeed;
+    if(!this.collected && Math.abs(this.x-player.x)<25 && Math.abs(this.y-player.y)<25){
+      this.collected=true; spawnParticles(this.x,this.y,"white",30);
+      score+=10; spawnFloatingScore(10);
     }
   }
-  draw(){ if(!this.collected){
-    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(Math.PI/4);
-    ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20;
-    ctx.fillRect(-this.size/2,-this.size/2,this.size,this.size); ctx.shadowBlur=0;
-    ctx.restore();
-  }}
+  draw(){
+    if(!this.collected){
+      ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(Math.PI/4);
+      ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=20;
+      ctx.fillRect(-this.size/2,-this.size/2,this.size,this.size);
+      ctx.restore(); ctx.shadowBlur=0;
+    }
+  }
 }
 
-// Spawn logic
-let lastSpawnCol=0;
-function getNextSpawnCol(){ return lastSpawnCol + 1 + Math.floor(Math.random()*5); }
-function spawnStrike(){ 
-  let col = getNextSpawnCol(); if(col>=gridCols) col=gridCols-1; lastSpawnCol=col;
-  let x = col*blockSize + blockSize/2;
-  let t=Math.random(); let type="red"; if(t>0.7 && t<0.9) type="purple"; if(t>=0.9) type="white";
-  let lane=Math.random()<0.5?0:1; strikes.push(new Strike(type,lane)); strikes[strikes.length-1].x=x;
-}
-function spawnGem(){ 
-  let col = getNextSpawnCol(); if(col>=gridCols) col=gridCols-1; lastSpawnCol=col;
-  let x = col*blockSize + blockSize/2; gems.push(new Gem(x));
-}
-
-// Draw
-function drawPlayer(){
-  player.y += (player.targetY-player.y)*0.3; 
-  spawnTrail(player.x,player.y);
-  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=10;
-  ctx.fillRect(player.x-player.width/2,player.y-player.height,player.width,player.height); ctx.shadowBlur=0;
-}
+// Ground
 function drawGround(){
-  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=10;
+  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=15;
   ctx.fillRect(0,topGroundY-groundHeight,canvas.width,groundHeight);
-  ctx.fillRect(0,bottomGroundY,canvas.width,groundHeight); ctx.shadowBlur=0;
+  ctx.fillRect(0,bottomGroundY,canvas.width,groundHeight);
+  ctx.shadowBlur=0;
 }
-function drawScore(){ ctx.font="24px 'Press Start 2P'"; ctx.fillStyle="white"; ctx.textAlign="center"; ctx.fillText(score,canvas.width/2,50); }
 
-// Collision check with shatter effect
+// Player
+function drawPlayer(){
+  player.y+=(player.targetY-player.y)*0.2;
+  spawnTrail(player.x,player.y);
+  ctx.fillStyle="white"; ctx.shadowColor="white"; ctx.shadowBlur=15;
+  ctx.fillRect(player.x-player.width/2,player.y-player.height,player.width,player.height);
+  ctx.shadowBlur=0;
+}
+
+// Score
+function drawScore(){
+  ctx.font="20px 'Press Start 2P'"; ctx.fillStyle="white"; ctx.textAlign="center";
+  ctx.fillText(score,canvas.width/2,50);
+}
+
+// Collision
 function checkCollisions(){
   for(let s of strikes){
-    let dx=Math.abs(player.x-s.x); 
-    let dy = Math.abs(player.y - s.y); 
-    if(dx<player.width/2 && dy<player.height/2){
+    if(!s.active) continue;
+    let dx=Math.abs(player.x-s.x), dy=Math.abs(player.y-s.y);
+    if(dx<player.width/2+15 && dy<player.height/2+15){
       gameRunning=false;
-      spawnParticles(player.x,player.y,"white",50); // shatter
-      alert("You Died! Score: "+score); 
-      location.reload();
+      spawnParticles(player.x,player.y,"white",60);
+      if(score>bestScore){ localStorage.setItem("ghostTrainBest",score); }
+      setTimeout(()=>{ alert("You Died! Score: "+score); location.reload(); },100);
     }
   }
+}
+
+// Spawning
+let lastSpawnCol=0;
+function getNextSpawnCol(){ return lastSpawnCol+1+Math.floor(Math.random()*5); }
+function spawnThing(){
+  let choice=Math.random();
+  if(choice<0.8) spawnStrike(); else spawnGem();
+}
+function spawnStrike(){
+  let lane=Math.random()<0.5?0:1;
+  let t=Math.random(); let type="red";
+  if(t>0.7 && t<0.9) type="purple";
+  if(t>=0.9) type="white";
+  strikes.push(new Strike(type,lane));
+}
+function spawnGem(){ gems.push(new Gem(canvas.width+60)); }
+
+// Input
+const keyState={};
+document.addEventListener("keydown",e=>{
+  if(!gameRunning) return;
+  if(keyState[e.key]) return;
+  keyState[e.key]=true;
+  if(["w"," ","ArrowUp"].includes(e.key)) switchLane();
+  if(["q","Tab"].includes(e.key)) destroyNearbyWhite();
+});
+document.addEventListener("keyup",e=>{ keyState[e.key]=false; });
+document.addEventListener("mousedown",()=>{ if(gameRunning) switchLane(); });
+document.getElementById("strikeButton").addEventListener("click",destroyNearbyWhite);
+
+// Switch lane
+function switchLane(){
+  player.lane=player.lane===0?1:0;
+  player.targetY=(player.lane===0?topGroundY:bottomGroundY)-30;
+  spawnParticles(player.x,player.y,"white",15);
+  score+=1; spawnFloatingScore(1);
+}
+
+// Destroy white
+function destroyNearbyWhite(){
+  for(let s of strikes){
+    if(s.type==="white" && Math.abs(s.x-player.x)<80){ s.active=false; spawnParticles(s.x,s.y,"white",50); }
+  }
+  strikes=strikes.filter(s=>s.active);
 }
 
 // Game loop
@@ -245,24 +290,17 @@ function gameLoop(){
   requestAnimationFrame(gameLoop);
 }
 
-// Lane switch and destroy
-function switchLane(){ player.targetY=player.targetY===topGroundY-groundHeight?bottomGroundY-groundHeight:topGroundY-groundHeight; spawnParticles(player.x,player.y,"white",30); score+=1; spawnFloatingScore(1); }
-function destroyNearbyWhite(){ for(let s of strikes){ if(s.type==="white" && Math.abs(s.x-player.x)<blockSize*2){ s.active=false; spawnParticles(s.x,s.y,"white",50); } } strikes=strikes.filter(s=>s.active); }
-
 // UI
-document.getElementById("startBtn").onclick = ()=>{
-  document.getElementById("ui").style.display="none"; document.getElementById("strikeButton").style.display="block";
-  gameRunning=true; setInterval(spawnStrike,1500); setInterval(spawnGem,3500); gameLoop();
+document.getElementById("startBtn").onclick=()=>{
+  document.getElementById("ui").style.display="none";
+  document.getElementById("strikeButton").style.display="block";
+  gameRunning=true; setInterval(spawnThing,1500); gameLoop();
 };
-document.getElementById("howToBtn").onclick = ()=>{ document.getElementById("howToPlayBox").style.display="block"; };
-document.getElementById("closeHowTo").onclick = ()=>{ document.getElementById("howToPlayBox").style.display="none"; };
-document.getElementById("strikeButton").addEventListener("click",destroyNearbyWhite);
+document.getElementById("howToBtn").onclick=()=>{ document.getElementById("howToPlayBox").style.display="block"; };
+document.getElementById("closeHowTo").onclick=()=>{ document.getElementById("howToPlayBox").style.display="none"; };
 
 // Resize
-window.addEventListener("resize", ()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
-
-// Save best score
-window.addEventListener("beforeunload", ()=>{ if(score>bestScore){ localStorage.setItem("ghostTrainBest", score); } });
+window.addEventListener("resize",()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
 </script>
 </body>
 </html>
